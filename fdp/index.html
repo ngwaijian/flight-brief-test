@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FDP Calculator</title>
+<script>
+        (function() {
+            const THEME_KEY = 'flightBriefTheme';
+            const systemQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+            function applyTheme(isDark) {
+                const html = document.documentElement;
+                if (isDark) {
+                    html.classList.add('dark');
+                    html.setAttribute('data-theme', 'dark');
+                    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#0f172a');
+                } else {
+                    html.classList.remove('dark');
+                    html.setAttribute('data-theme', 'light');
+                    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#f1f5f9');
+                }
+            }
+
+            // 1. INITIAL LOAD LOGIC
+            function initTheme() {
+                const saved = localStorage.getItem(THEME_KEY);
+                if (saved === 'dark' || saved === 'light') {
+                    // User has manually overridden -> Use saved
+                    applyTheme(saved === 'dark');
+                } else {
+                    // No override -> Use Device Setting
+                    applyTheme(systemQuery.matches);
+                }
+            }
+
+            // 2. LISTEN FOR DEVICE SYSTEM CHANGES (Live)
+            // This ensures it switches automatically if you haven't manually toggled yet
+            systemQuery.addEventListener('change', (e) => {
+                if (!localStorage.getItem(THEME_KEY)) {
+                    applyTheme(e.matches);
+                }
+            });
+
+            // 3. LISTEN FOR MANUAL CLICKS FROM OTHER TABS
+            window.addEventListener('storage', (e) => {
+                if (e.key === THEME_KEY) {
+                    applyTheme(e.newValue === 'dark');
+                }
+            });
+
+            // 4. GLOBAL TOGGLE FUNCTION (Connected to your buttons)
+            window.toggleTheme = function() {
+                const isDarkNow = document.documentElement.classList.contains('dark');
+                const newMode = !isDarkNow;
+                
+                applyTheme(newMode);
+                
+                // Save the manual choice (Persistent Override)
+                localStorage.setItem(THEME_KEY, newMode ? 'dark' : 'light');
+            };
+
+            // Run on load
+            initTheme();
+        })();
+    </script>
+	
+	<link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    
+    <link rel="icon" type="image/png" sizes="32x32" href="app-icon.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="app-icon.png">
+    <link rel="apple-touch-icon" href="app-icon.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#ffffff">
+</head>
+
+<header>
+<div class="nav-group">
+    
+    <a href="../index.html" class="nav-link fdp" title="Flight Brief">
+        <img src="../app-icon.png" alt="FDP Icon">
+        <span>Flight Brief</span>
+    </a>
+
+    <a href="../delays/index.html" class="nav-link delay" title="Delay Codes">
+        <img src="../delays/app-icon.png" alt="Delay Icon">
+        <span>Delay Code</span>
+    </a>
+
+</div>
+    
+    <div class="app-title">
+        <h1>FDP Calculator</h1>
+        </div>
+
+    <button id="theme-toggle" class="theme-btn" aria-label="Toggle Theme">
+        <svg class="sun" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+        <svg class="moon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+    </button>
+</header>
+
+<body>
+
+    <div class="app-wrapper">
+
+
+        <div class="main-layout">
+            
+            <section class="left-panel">
+                
+                <nav class="nav-tabs">
+                    <button class="nav-btn active" data-type="normal">Normal</button>
+                    <button class="nav-btn" data-type="standby">Standby</button>
+                    <button class="nav-btn" data-type="delayed">Delayed Reporting</button>
+                </nav>
+
+                <div class="input-block">
+                    <label>Number of Sectors</label>
+                    <select id="sectors">
+                        <option value="1">1 Sector</option>
+                        <option value="2">2 Sectors</option>
+                        <option value="3">3 Sectors</option>
+                        <option value="4">4 Sectors</option>
+                        <option value="5">5 Sectors</option>
+                        <option value="6">6 Sectors</option>
+                        <option value="7">7 Sectors</option>
+                        <option value="8">8 Sectors</option>
+                    </select>
+                </div>
+
+                <div id="normal-fields" class="form-section active">
+                    <div class="input-block">
+                        <label>Reporting Time</label>
+                        <input type="time" id="reportTime">
+                    </div>
+
+                    <div class="toggle-row">
+                        <span>Acclimatised</span>
+                        <label class="switch">
+                            <input type="checkbox" id="isAcclimatised" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="input-block hidden" id="rest-duration-field">
+                        <label>Rest Duration</label>
+                        <select id="restDuration">
+                            <option value="low">Low (< 18h)</option>
+                            <option value="medium">Medium (18h - 30h)</option>
+                            <option value="high">High (> 30h)</option>
+                        </select>
+                    </div>
+
+                    <div class="input-block">
+                        <label>Sign Off Time <span class="opt">(Optional)</span></label>
+                        <input type="time" id="signOffNormal">
+                    </div>
+                </div>
+
+                <div id="standby-fields" class="form-section">
+                    <div class="input-block">
+                        <label>Standby Start Time</label>
+                        <input type="time" id="standbyStartTime">
+                    </div>
+                    
+                    <div class="input-block">
+                        <label>Notification Time <span class="opt">(For Short Notice)</span></label>
+                        <input type="time" id="noticeTime">
+                    </div>
+
+                    <div class="input-block">
+                        <label>Actual Reporting Time</label>
+                        <input type="time" id="reportTimeStandby">
+                    </div>
+                    
+                    <div class="input-block">
+                        <label>Sign Off Time <span class="opt">(Optional)</span></label>
+                        <input type="time" id="signOffStandby">
+                    </div>
+                </div>
+
+                <div id="delayed-fields" class="form-section">
+                    <div class="input-block">
+                        <label>Original Reporting Time</label>
+                        <input type="time" id="originalReportTime">
+                    </div>
+                    <div class="input-block">
+                        <label>Actual Reporting Time</label>
+                        <input type="time" id="actualReportTime">
+                    </div>
+                    <div class="input-block">
+                        <label>Sign Off Time <span class="opt">(Optional)</span></label>
+                        <input type="time" id="signOffDelayed">
+                    </div>
+                </div>
+
+<div class="btn-group">
+    <button id="reset-btn" class="secondary-btn">Reset</button>
+    <button id="calc-btn" class="action-btn">Calculate</button>
+</div>
+            </section>
+
+            <section class="right-panel">
+                <div id="empty-results" class="empty-state">
+                    <p>Enter details to calculate FDP</p>
+                </div>
+
+                <div id="results-content" class="results-grid hidden">
+                    <div class="result-card small">
+                        <span class="res-label">FDP Limit</span>
+                        <span class="res-value" id="disp-limit">--:--</span>
+                    </div>
+                    <div class="result-card highlight">
+                        <span class="res-label">Legal End Time</span>
+                        <span class="res-value" id="disp-legal">--:--</span>
+                    </div>
+                    <div class="result-card small">
+                        <span class="res-label">Max Extension (+3h)</span>
+                        <span class="res-value" id="disp-max">--:--</span>
+                    </div>
+
+                    <div class="divider"></div>
+
+                    <div class="result-card">
+                        <span class="res-label">Total Duty</span>
+                        <span class="res-value" id="disp-duty">--:--</span>
+                    </div>
+                    <div class="result-card">
+                        <span class="res-label">Next Earliest Report</span>
+                        <span class="res-value" id="disp-next">--:--</span>
+                    </div>
+
+                    <div id="alert-msg" class="alert-box hidden">
+                        ⚠️ FDP Limit Exceeded
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+	
+	<script src="script.js"></script>
+
+    <script>
+        // Register Service Worker for offline support
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker registered ✅', reg))
+                    .catch(err => console.log('Service Worker registration failed ❌', err));
+            });
+        }
+    </script>
+	
+</body>
+</html>

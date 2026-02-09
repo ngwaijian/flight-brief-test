@@ -1,0 +1,470 @@
+:root {
+    /* LIGHT MODE */
+    --bg-app: #f0f2f5;
+    --bg-panel: #ffffff;
+    --text-primary: #111827;
+    --text-secondary: #6b7280;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --border: #e5e7eb;
+    --input-bg: #f9fafb;
+    --danger: #ef4444;
+    --radius: 16px; /* Slightly rounder corners */
+}
+
+[data-theme="dark"] {
+    /* DARK MODE */
+    --bg-app: #0f172a;
+    --bg-panel: #1e293b;
+    --text-primary: #f3f4f6;
+    --text-secondary: #94a3b8;
+    --accent: #3b82f6;
+    --accent-hover: #60a5fa;
+    --border: #334155;
+    --input-bg: #0f172a; /* Darker input background for contrast */
+    --danger: #f87171;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
+body { background-color: var(--bg-app); color: var(--text-primary); transition: background 0.3s, color 0.3s; min-height: 100vh; display: flex; flex-direction: column; }
+
+.app-wrapper {
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px; /* Outer spacing from screen edge */
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* --- UNIFIED GRID HEADER (Matches Delay App) --- */
+/* --- UNIFIED GRID HEADER --- */
+header {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    
+    /* CHANGE THIS LINE */
+    margin-bottom: 0px;  /* Reduced from 24px to tightens the gap */
+    
+    box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+    display: grid;
+    grid-template-columns: auto 1fr auto; 
+    gap: 12px;
+    align-items: center;
+}
+
+/* Back Button Styling */
+.back-btn {
+    background: var(--input-bg);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    text-decoration: none;
+}
+.back-btn:hover {
+    background: var(--border);
+    color: var(--text-primary);
+}
+
+/* --- UNIFIED GRID HEADER --- */
+header {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 0px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.03);
+
+    /* LAYOUT: Changed to Flex + Relative for absolute centering */
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Pushes buttons to edges */
+    position: relative; /* Creates the coordinate system for the title */
+}
+
+/* Title Styling (Absolute Center) */
+.app-title {
+    position: absolute;       /* Removes title from flow */
+    left: 50%;                /* Move to middle of header */
+    transform: translateX(-50%); /* Shift back by 50% of its own width */
+    
+    width: max-content;       /* Ensure it doesn't wrap unnecessarily */
+    padding: 0; 
+    margin: 0;
+    pointer-events: none;     /* Allows clicking through if buttons overlap */
+}
+
+.app-title h1 {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1;
+    margin: 0;
+    white-space: nowrap;
+}
+
+/* Ensure buttons stay clickable above the title */
+.nav-group, #theme-toggle {
+    z-index: 10;
+    position: relative;
+}
+
+/* Theme Button Styling */
+/* Theme Button Styling */
+.theme-btn {
+    background: var(--input-bg);
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background 0.2s;
+    
+    /* --- ADD THIS LINE --- */
+    margin-left: auto; /* Forces the button to the far right edge */
+}
+.theme-btn:hover {
+    background: var(--border);
+    color: var(--accent);
+}
+
+/* Icons visibility */
+[data-theme="light"] .sun { display: none; }
+[data-theme="dark"] .moon { display: none; }
+
+/* LAYOUT: Main Grid */
+.main-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    flex: 1;
+}
+
+/* Tablet/Desktop: Side by Side */
+@media (min-width: 768px) {
+    .main-layout {
+        grid-template-columns: 1fr 1fr;
+        gap: 40px;
+        align-items: start;
+    }
+    .right-panel {
+        position: sticky;
+        top: 20px;
+        height: auto;
+    }
+}
+
+/* PANELS */
+.left-panel, .right-panel {
+    background: var(--bg-panel);
+    border-radius: var(--radius);
+    padding: 32px; /* INCREASED from 24px to fix sticking edges */
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+}
+
+/* Mobile specific padding adjustment */
+@media (max-width: 480px) {
+    .app-wrapper { padding: 16px; }
+    .left-panel, .right-panel { padding: 28px 24px; } /* More vertical space, balanced horizontal */
+}
+
+/* TABS */
+.nav-tabs { display: flex; background: var(--input-bg); padding: 5px; border-radius: 12px; margin-bottom: 28px; border: 1px solid var(--border); }
+.nav-btn { flex: 1; padding: 10px; border: none; background: transparent; color: var(--text-secondary); font-weight: 600; cursor: pointer; border-radius: 8px; transition: all 0.2s ease; font-size: 0.85rem; }
+.nav-btn.active { background: var(--bg-panel); color: var(--text-primary); box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+
+/* INPUTS */
+.form-section { display: none; }
+.form-section.active { display: block; animation: fade 0.3s ease; }
+@keyframes fade { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+.input-block { margin-bottom: 20px; }
+.input-block label { display: block; font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 8px; font-weight: 500; }
+.input-block.hidden { display: none; }
+.opt { font-weight: normal; opacity: 0.6; font-size: 0.75rem; }
+
+input[type="time"], select {
+    width: 100%;
+    padding: 16px; /* Taller touch targets */
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text-primary);
+    font-size: 1.1rem; /* Larger text for time */
+    outline: none;
+    transition: all 0.2s;
+    appearance: none; /* Remove default iOS styling */
+    -webkit-appearance: none;
+    text-align: center; /* CENTER the time text */
+    font-weight: 500;
+}
+input[type="time"]:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+
+/* TOGGLE */
+.toggle-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-size: 0.95rem; font-weight: 600; }
+.switch { position: relative; display: inline-block; width: 50px; height: 28px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border); transition: .4s; border-radius: 34px; }
+.slider:before { position: absolute; content: ""; height: 22px; width: 22px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+input:checked + .slider { background-color: var(--accent); }
+input:checked + .slider:before { transform: translateX(22px); }
+
+/* BUTTON */
+.action-btn {
+    width: 100%;
+    padding: 16px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-top: 12px;
+    cursor: pointer;
+    transition: 0.2s;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+.action-btn:active { transform: scale(0.98); }
+
+/* RESULTS PANEL */
+.empty-state { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-secondary); min-height: 250px; text-align: center; font-size: 0.95rem; opacity: 0.7; }
+
+.results-grid.hidden { display: none; }
+.results-grid { display: flex; flex-direction: column; gap: 16px; }
+
+.result-card {
+    background: var(--input-bg);
+    padding: 20px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    border: 1px solid transparent;
+}
+.result-card.small { padding: 16px; }
+.result-card.highlight { background: var(--accent); color: white; box-shadow: 0 8px 16px rgba(37, 99, 235, 0.15); }
+.result-card.highlight .res-label { color: rgba(255,255,255,0.9); }
+.result-card.highlight .res-value { color: white; }
+
+.res-label { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); margin-bottom: 6px; font-weight: 700; }
+.res-value { font-size: 1.8rem; font-weight: 800; font-family: monospace; letter-spacing: -0.02em; line-height: 1; }
+.result-card.small .res-value { font-size: 1.4rem; }
+
+.divider { height: 1px; background: var(--border); margin: 12px 0; border-top: 1px dashed var(--text-secondary); opacity: 0.2; }
+
+.alert-box {
+    margin-top: 12px;
+    padding: 14px;
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger);
+    border: 1px solid var(--danger);
+    border-radius: 12px;
+    font-weight: 700;
+    text-align: center;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+.alert-box.hidden { display: none; }
+
+.back-home-btn {
+    position: fixed;
+    top: 16px; /* Safe distance from top */
+    left: 16px;
+    z-index: 9999;
+    
+    /* Glassmorphism Look */
+    background: rgba(15, 23, 42, 0.65); /* Dark semi-transparent */
+    backdrop-filter: blur(12px);         /* The Blur Effect */
+    -webkit-backdrop-filter: blur(12px); /* For Safari */
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    
+    /* Text & Shape */
+    color: white;
+    text-decoration: none;
+    padding: 10px 18px;
+    border-radius: 30px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    
+    /* Flex layout for icon + text */
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    
+    /* Animation */
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.back-home-btn:hover {
+    background: rgba(15, 23, 42, 0.9);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.back-home-btn:active {
+    transform: scale(0.95);
+}
+
+/* --- FIX FOR MAIN MENU OVERLAP --- */
+
+/* 1. Hide the old blue 'FDP' box since we have the Menu button now */
+.logo-box {
+    display: none !important;
+}
+
+/* 2. Push the content down slightly so the title isn't covered by the button */
+.app-wrapper {
+    padding-top: 70px !important; /* Creates space for the fixed button */
+}
+
+/* 3. Optional: Ensure the title aligns nicely */
+header {
+    justify-content: flex-start; /* Aligns title to the left */
+}
+header h1 {
+    margin-left: 4px; /* Small adjustment if needed */
+}
+
+/* --- NEW BUTTON GROUP STYLES --- */
+
+/* Container to hold both buttons side-by-side */
+.btn-group {
+    display: flex;
+    gap: 12px;       /* Space between buttons */
+    margin-top: 12px;
+}
+
+/* The new Reset Button Style */
+.secondary-btn {
+    flex: 1;         /* Takes up 1 share of width (33%) */
+    padding: 16px;
+    background: var(--input-bg); /* Matches your input fields automatically */
+    color: var(--text-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+/* Hover effect for Reset */
+.secondary-btn:hover {
+    background: var(--border);
+    color: var(--text-primary);
+}
+
+/* Active effect (click) */
+.secondary-btn:active {
+    transform: scale(0.98);
+}
+
+/* Update the EXISTING .action-btn to fit in the group */
+.action-btn {
+    /* remove 'width: 100%' if it exists, or override it here */
+    width: auto;     
+    flex: 2;         /* Takes up 2 shares of width (66%) */
+    margin-top: 0;   /* Remove top margin so it aligns with Reset */
+}
+
+@media (max-width: 480px) {
+    .app-wrapper {
+        padding-top: 10px !important; /* Pulls everything up to the top edge */
+    }
+    .main-layout {
+        gap: 8px; /* Extremely tight gap for mobile */
+    }
+}
+
+/* --- HEADER NAVIGATION BUTTONS --- */
+
+/* 1. Wrapper for the two buttons */
+.nav-group {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+/* 2. Base Button Style (Pill shape) */
+.nav-link {
+    display: flex;
+    align-items: center;
+    gap: 8px; /* Space between icon and text */
+    padding: 6px 10px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-size: 0.75rem; /* Small, crisp text */
+    font-weight: 700;
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+}
+
+/* 3. FIX ICON SIZE (This prevents them from being huge) */
+.nav-link img {
+    width: 20px;  /* Fixed width */
+    height: 20px; /* Fixed height */
+    border-radius: 4px;
+    object-fit: cover;
+    display: block;
+}
+
+/* 4. RESPONSIVE TEXT: Default to HIDDEN (Mobile) */
+.nav-link span {
+    display: none; 
+}
+
+/* 5. RESPONSIVE TEXT: Show on iPad/Laptop (Screens wider than 768px) */
+@media (min-width: 768px) {
+    .nav-link span {
+        display: inline-block;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+    }
+}
+
+/* --- SPECIFIC THEMES (Matches your image) --- */
+
+/* Flight Brief (Blue Theme) */
+.nav-link.fdp {
+    background: rgba(37, 99, 235, 0.08);
+    color: #2563eb; /* Blue text */
+    border: 1px solid rgba(37, 99, 235, 0.2);
+}
+.nav-link.fdp:hover {
+    background: rgba(37, 99, 235, 0.15);
+}
+
+/* Delay Code (Red/Gray Theme) */
+.nav-link.delay {
+    background: rgba(153, 27, 27, 0.08);
+    color: #991b1b; /* Dark red text */
+    border: 1px solid rgba(153, 27, 27, 0.2);
+}
+.nav-link.delay:hover {
+    background: rgba(153, 27, 27, 0.15);
+}
+
+/* Dark Mode Adjustments */
+[data-theme="dark"] .nav-link.fdp { color: #60a5fa; border-color: rgba(96, 165, 250, 0.3); }
+[data-theme="dark"] .nav-link.delay { color: #f87171; border-color: rgba(248, 113, 113, 0.3); }

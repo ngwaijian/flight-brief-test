@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Delay Codes</title>
+	
+    <script>
+        (function() {
+            const THEME_KEY = 'flightBriefTheme';
+            const systemQuery = window.matchMedia('(prefers-color-scheme: dark)');
+
+            function applyTheme(isDark) {
+                const html = document.documentElement;
+                if (isDark) {
+                    html.classList.add('dark');
+                    html.setAttribute('data-theme', 'dark');
+                    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#0f172a');
+                } else {
+                    html.classList.remove('dark');
+                    html.setAttribute('data-theme', 'light');
+                    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', '#f1f5f9');
+                }
+            }
+
+            function initTheme() {
+                const saved = localStorage.getItem(THEME_KEY);
+                if (saved === 'dark' || saved === 'light') {
+                    applyTheme(saved === 'dark');
+                } else {
+                    applyTheme(systemQuery.matches);
+                }
+            }
+
+            systemQuery.addEventListener('change', (e) => {
+                if (!localStorage.getItem(THEME_KEY)) {
+                    applyTheme(e.matches);
+                }
+            });
+
+            window.addEventListener('storage', (e) => {
+                if (e.key === THEME_KEY) {
+                    applyTheme(e.newValue === 'dark');
+                }
+            });
+
+            window.toggleTheme = function() {
+                const isDarkNow = document.documentElement.classList.contains('dark');
+                const newMode = !isDarkNow;
+                applyTheme(newMode);
+                localStorage.setItem(THEME_KEY, newMode ? 'dark' : 'light');
+            };
+
+            initTheme();
+        })();
+    </script>
+
+    <link rel="manifest" href="../manifest.json">
+    <meta name="theme-color" content="#dc2626">
+    
+<script src="../libs/tailwindcss.js"></script>
+<script src="../libs/fuse.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
+
+    <style>
+        body { -webkit-tap-highlight-color: transparent; }
+        .code-card { transition: all 0.2s; }
+        .code-card:active { transform: scale(0.98); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        /* Safe Area Utilities */
+        .pt-safe { padding-top: max(1rem, env(safe-area-inset-top)); }
+        .pb-safe { padding-bottom: calc(5rem + env(safe-area-inset-bottom)); }
+
+        /* FDP STYLE BUTTON (Adapted for Red Header) 
+           This replicates the glassmorphism look from the FDP app
+        */
+        .glass-btn {
+            background: rgba(0, 0, 0, 0.2); /* Darker semi-transparent for Red bg */
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            white-space: nowrap;
+        }
+
+        .glass-btn:active {
+            transform: scale(0.95);
+            background: rgba(0, 0, 0, 0.4);
+        }
+		
+		/* --- NAVIGATION & HEADER UPDATES --- */
+
+        /* 1. Header Layout overrides */
+        .header-flex {
+            display: flex;
+            align-items: center;
+            justify-content: space-between; /* Pushes content to edges */
+            position: relative; /* Anchor for the absolute title */
+        }
+
+        /* 2. Absolute Centered Title */
+        .center-title {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            pointer-events: none; /* Click-through */
+            white-space: nowrap;
+            text-align: center;
+        }
+
+        /* 3. Navigation Group (Left side) */
+        .nav-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            position: relative;
+            z-index: 20; /* Above title */
+        }
+
+        /* 4. Nav Button Styles */
+        .nav-link {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 0.75rem;
+            font-weight: 700;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        /* ICON SIZE CONTROL (Crucial fix) */
+        .nav-link img {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* RESPONSIVE TEXT: Hidden on mobile, Visible on Desktop (md) */
+        .nav-link span { display: none; }
+        @media (min-width: 768px) {
+            .nav-link span { display: inline-block; text-transform: uppercase; letter-spacing: 0.5px; }
+        }
+
+        /* --- THEME VARIANTS --- */
+        
+        /* UNIFIED BLUE THEME (Flight Brief & FDP) */
+        .nav-link.flightbrief,
+        .nav-link.fdp {
+            background: rgba(37, 99, 235, 0.08);
+            color: #2563eb;
+            border: 1px solid rgba(37, 99, 235, 0.2); /* Ensure border is defined */
+        }
+
+        .nav-link.flightbrief:hover,
+        .nav-link.fdp:hover { 
+            background: rgba(37, 99, 235, 0.15); 
+        }
+
+        /* Dark Mode overrides for Blue Theme */
+        [data-theme="dark"] .nav-link.flightbrief,
+        [data-theme="dark"] .nav-link.fdp { 
+            color: #60a5fa; 
+            border-color: rgba(96, 165, 250, 0.3); 
+        }
+    </style>
+</head>
+<body class="bg-slate-100 dark:bg-slate-900 min-h-screen pb-safe transition-colors duration-300">
+
+   <div class="header-flex bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 pt-safe px-4 pb-4 sticky top-0 z-40 shadow-sm transition-colors duration-300">
+        
+<div class="nav-group">
+            
+            <a href="../index.html" class="nav-link flightbrief" title="Go to Flight Brief">
+                <img src="../app-icon.png" alt="Flight Brief">
+                <span>Flight Brief</span>
+            </a>
+
+            <a href="../fdp/index.html" class="nav-link fdp" title="Go to FDP Calculator">
+                <img src="../fdp/app-icon.png" alt="FDP">
+                <span>FDP Calculator</span>
+            </a>
+
+        </div>
+        
+        <div class="center-title">
+            <h1 class="text-lg font-bold text-slate-800 dark:text-white leading-none">Delay Codes</h1>
+        </div>
+
+        <button id="delay-theme-toggle" style="margin-left: auto; position: relative; z-index: 20;" class="p-2 bg-slate-100 dark:bg-slate-700 rounded-lg text-slate-600 dark:text-yellow-400 border border-slate-200 dark:border-slate-600 hover:bg-slate-200 transition-colors">
+            <svg class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></circle><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2v2m0 16v2M4.93 4.93l1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>
+            <svg class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+        </button>
+
+    </div>
+    
+    
+    <div class="relative mt-4">
+        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg class="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+        </div>
+        <input type="text" id="searchInput" placeholder="Search code (e.g., '34', 'Pax', 'Late')..." 
+               class="block w-full pl-10 pr-3 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-sm">
+        <button id="clearBtn" class="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hidden hover:text-red-500 cursor-pointer">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+    </div>
+</div>
+
+    <div class="px-4 py-3 overflow-x-auto whitespace-nowrap bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 no-scrollbar transition-colors">
+        <button onclick="filterCat('ALL')" class="cat-btn bg-slate-800 dark:bg-slate-200 text-white dark:text-slate-900 px-3 py-1.5 rounded-full text-xs font-bold mr-2 shadow-sm">ALL</button>
+        <button onclick="filterCat('PAX')" class="cat-btn bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-100 px-3 py-1.5 rounded-full text-xs font-bold mr-2">PAX</button>
+        <button onclick="filterCat('TECH')" class="cat-btn bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-100 px-3 py-1.5 rounded-full text-xs font-bold mr-2">TECH</button>
+        <button onclick="filterCat('OPS')" class="cat-btn bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-100 px-3 py-1.5 rounded-full text-xs font-bold mr-2">OPS</button>
+        <button onclick="filterCat('WX')" class="cat-btn bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-100 px-3 py-1.5 rounded-full text-xs font-bold mr-2">WX</button>
+        <button onclick="filterCat('RAMP')" class="cat-btn bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-100 px-3 py-1.5 rounded-full text-xs font-bold mr-2">RAMP</button>
+    </div>
+
+    <div id="results" class="p-4 space-y-3"></div>
+
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+
+    <script>
+        document.getElementById('delay-theme-toggle').addEventListener('click', () => {
+            if(window.toggleTheme) window.toggleTheme();
+        });
+    </script>
+
+</body>
+
+
+</html>

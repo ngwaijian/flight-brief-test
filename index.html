@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FlightBrief v13</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="FlightBrief">
+    <meta name="theme-color" content="#0f172a">
+    
+    <link rel="icon" type="image/png" href="app-icon.png">
+    <link rel="apple-touch-icon" href="app-icon.png">
+    
+
+<script src="libs/pdf.min.js"></script>
+<script src="libs/html2canvas.min.js"></script>
+<script src="libs/jspdf.umd.min.js"></script>
+<script src="libs/tailwindcss.js"></script>
+
+    
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        /* NEW: Allow full width, but keep some padding on huge screens if desired */
+        #main-container { max-width: 1280px; margin: 0 auto; width: 100%; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none;  scrollbar-width: none; }
+        .data-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px; }
+        @media (min-width: 640px) { .data-grid { grid-template-columns: repeat(4, 1fr); } }
+        .times-grid { display: grid; grid-template-columns: repeat(3, 1fr); }
+        .planning-grid { display: grid; grid-template-columns: 1fr; gap: 6px; }
+        @media (min-width: 480px) { .planning-grid { grid-template-columns: 1fr 1fr; } }
+        .tanker-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        @media (min-width: 640px) { .tanker-grid { grid-template-columns: repeat(4, 1fr); } }
+        .modal-scroll::-webkit-scrollbar { width: 8px; }
+        .modal-scroll::-webkit-scrollbar-track { background: #f1f5f9; }
+        .modal-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .animate-fade-in { animation: fadeIn 0.2s ease-out forwards; }
+    </style>
+	
+	<script>
+        // Define config BEFORE loading tailwind script
+        tailwind = {
+            darkMode: 'class', 
+            theme: {
+                extend: {
+                    colors: { slate: { 850: '#1e293b', 900: '#0f172a' } },
+                    screens: { 'xs': '480px' }
+                }
+            }
+        }
+    </script>
+    <script src="libs/tailwindcss.js"></script>
+	
+</head>
+<body class="min-h-screen flex flex-col bg-slate-100 dark:bg-slate-900 transition-colors duration-300">
+
+    <div class="bg-red-600 text-white text-center text-[10px] sm:text-sm font-bold py-2 px-2 shadow-md z-20 uppercase tracking-wide" id="status-bar">
+        ⚠️ DO NOT USE FOR COCKPIT ACTIVITY ⚠️
+    </div>
+
+    <div class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-2 sm:p-3 flex justify-between items-center sticky top-0 z-30 shadow-sm relative h-16">
+        
+<div class="flex items-center gap-2 z-20 relative">
+    
+    <a href="fdp/index.html" class="group flex items-center gap-2 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-800 text-blue-700 dark:text-blue-300 px-2 py-2 md:px-3 rounded-lg transition-all border border-blue-200 dark:border-blue-800/50" title="FDP Calculator">
+        <img src="fdp/app-icon.png" alt="FDP" class="w-6 h-6 md:w-5 md:h-5 rounded shadow-sm">
+        <span class="hidden md:inline font-bold text-xs uppercase tracking-wide">FDP calculator</span>
+    </a>
+
+<a href="delays/index.html" class="group flex items-center gap-2 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-700 dark:text-red-400 px-2 py-2 md:px-3 rounded-lg transition-all border border-red-200 dark:border-red-900/50" title="Delay Codes">
+        <img src="delays/app-icon.png" alt="Delay" class="w-6 h-6 md:w-5 md:h-5 rounded shadow-sm">
+        <span class="hidden md:inline font-bold text-xs uppercase tracking-wide">Delay codes</span>
+    </a>
+
+</div>
+
+<div class="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center z-10 w-full pointer-events-none">
+    
+    <div onclick="window.location.reload()" class="pointer-events-auto flex flex-col sm:flex-row items-center gap-0.5 sm:gap-3 cursor-pointer hover:opacity-80 transition-opacity p-1" title="Reset to Home">
+        
+        <img src="app-icon.png" alt="Icon" class="w-8 h-8 rounded-md shadow-sm border border-slate-300 dark:border-slate-600">
+        
+        <div class="flex flex-col items-center sm:items-start justify-center">
+            
+            <h1 class="hidden sm:block font-black text-lg text-slate-900 dark:text-white leading-none tracking-tight">FlightBrief</h1>
+            
+            <span class="text-[9px] sm:text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest leading-none">v13</span>
+            
+        </div>
+
+    </div>
+
+    <button onclick="toggleReadMe()" class="pointer-events-auto hidden sm:block ml-1 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors" title="User Guide">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+    </button>
+
+</div>
+        
+        <div class="flex gap-1 items-center z-20 relative" id="header-tools">
+    
+    <button onclick="viewOriginalOfp()" class="hidden md:block p-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 hover:bg-slate-200" title="View Original PDF">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+    </button>
+    
+    <button onclick="toggleSettings()" class="hidden md:block p-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 hover:bg-slate-200" title="Database Settings">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+    </button>
+    
+    <button onclick="exportToPDF()" id="btn-pdf-export" class="hidden md:block p-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 hover:bg-slate-200" title="Export to PDF">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+    </button>
+
+    <button onclick="toggleHistory()" class="p-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 hover:bg-slate-200 shrink-0" title="History">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+    </button>
+    
+    <button onclick="toggleTheme()" class="p-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-yellow-400 hover:bg-slate-200 shrink-0" title="Toggle Dark Mode">
+        <svg id="theme-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+    </button>
+
+    <button onclick="toggleMobileMenu()" id="mobile-menu-btn" class="md:hidden p-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-200 hover:bg-slate-200 shrink-0" title="More Options">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+    </button>
+
+    <button onclick="document.getElementById('file-input').click()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1.5 px-3 rounded-lg text-xs sm:text-sm transition-colors shadow-sm shrink-0">Load</button>
+    
+    <div id="mobile-dropdown" class="hidden absolute top-full right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden z-50 origin-top-right transform transition-all duration-200">
+        <div class="py-1">
+            <button onclick="toggleReadMe(); toggleMobileMenu()" class="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 border-b border-slate-100 dark:border-slate-700/50 flex items-center gap-3">
+                <svg class="w-4 h-4 text-slate-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                User Guide
+            </button>
+            <button onclick="viewOriginalOfp(); toggleMobileMenu()" class="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 border-b border-slate-100 dark:border-slate-700/50 flex items-center gap-3">
+                <svg class="w-4 h-4 text-slate-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                View Original PDF
+            </button>
+            <button onclick="toggleSettings(); toggleMobileMenu()" class="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 border-b border-slate-100 dark:border-slate-700/50 flex items-center gap-3">
+                 <svg class="w-4 h-4 text-slate-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15... (rest of settings icon path)"/></svg>
+                Settings W&B
+            </button>
+            <button onclick="exportToPDF(); toggleMobileMenu()" class="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-3">
+                 <svg class="w-4 h-4 text-slate-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6... (rest of pdf icon path)"/></svg>
+                Export as PDF
+            </button>
+        </div>
+    </div>
+    
+    <input type="file" id="file-input" accept=".pdf" class="hidden"> 
+    <input type="file" id="cloud-upload-input" accept=".pdf" class="hidden" onchange="parseAndUploadCloudDB(this)"> 
+</div> </div> 
+
+
+
+		<div id="main-container" class="flex-1 p-3 sm:p-6 pb-20">
+        
+        <div id="empty-state" class="min-h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 py-10">
+            
+            <div class="bg-white dark:bg-slate-800 p-6 rounded-full mb-4 shadow-sm">
+                <img src="app-icon.png" alt="App Icon" class="w-16 h-16 rounded-xl opacity-80">
+            </div>
+            <p class="font-medium text-slate-600 dark:text-slate-300 text-sm sm:text-base mt-4">No Flight Plan Loaded</p>
+            <p class="text-xs mt-1 mb-6">Tap the blue Load button to begin</p>
+            
+            <div id="db-status" class="hidden mb-6 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 font-mono text-[10px] font-bold border border-purple-200 dark:border-purple-800 shadow-sm">
+            </div>
+
+
+
+            <div class="max-w-md w-full space-y-4 px-4">
+                <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden">
+                    <div class="bg-slate-50 dark:bg-slate-900/50 py-2 border-b border-slate-200 dark:border-slate-700">
+                        <h3 class="text-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">Header Buttons</h3>
+                    </div>
+                    <div class="p-4 grid grid-cols-2 gap-y-4 gap-x-6">
+                        
+                        <div class="flex items-center gap-3">
+                            <img src="fdp/app-icon.png" class="w-7 h-7 rounded-md shadow-sm bg-slate-50 dark:bg-slate-800">
+                            <span class="text-slate-600 dark:text-slate-300 text-xs font-medium">FDP Calculator</span>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <img src="delays/app-icon.png" class="w-7 h-7 rounded-md shadow-sm bg-slate-50 dark:bg-slate-800">
+                            <span class="text-slate-600 dark:text-slate-300 text-xs font-medium">Delay Codes Finder</span>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <div class="w-7 h-7 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                            </div>
+                            <span class="text-slate-600 dark:text-slate-300 text-xs font-medium">View Original PDF</span>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <div class="w-7 h-7 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                            </div>
+                            <span class="text-slate-600 dark:text-slate-300 text-xs font-medium">Settings of W&B</span>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <div class="w-7 h-7 rounded-md border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 flex items-center justify-center bg-slate-50 dark:bg-slate-800">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                            </div>
+                            <span class="text-slate-600 dark:text-slate-300 text-xs font-medium">Export as PDF</span>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <div class="w-7 h-7 rounded-md border border-slate-200 dark:border-slate-600 text-slate-500 dark:text-slate-400 flex items-center justify-center bg-slate-50 dark:bg-slate-800">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                            </div>
+                            <span class="text-slate-600 dark:text-slate-300 text-xs font-medium">History FlightBrief</span>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <div class="w-7 h-7 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-yellow-400 flex items-center justify-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                            </div>
+                            <span class="text-slate-600 dark:text-slate-300 text-xs font-medium">Toggle Dark Mode</span>
+                        </div>
+
+                        <div class="flex items-center gap-3">
+                            <span class="bg-blue-600 text-white text-[10px] font-bold px-2.5 py-1 rounded-md shadow-sm">Load</span>
+                            <span class="text-xs text-slate-600 dark:text-slate-300 font-medium">Upload OFP</span>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-5 shadow-sm">
+                    <div class="space-y-4 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                        <div class="flex gap-3">
+                            <span class="font-bold text-slate-900 dark:text-white min-w-[12px]"></span>
+                            <span class="text-red-600 dark:text-red-400 font-bold">CRITICAL: Read the ( i ) menu on the top right before use. This app assumes NO LIABILITY for any incidents.</span>
+                        </div>
+                        <div class="flex gap-3">
+                            <span class="font-bold text-slate-900 dark:text-white min-w-[12px]">1.</span>
+                            <span>Click <span class="font-bold text-blue-600">Load</span> to upload your flight plan (OFP).</span>
+                        </div>
+                        <div class="flex gap-3">
+                            <span class="font-bold text-slate-900 dark:text-white min-w-[12px]">2.</span>
+                            <span>To update the aircraft database, click <span class="font-bold text-slate-800 dark:text-white">Settings (Gear)</span>.</span>
+                        </div>
+                        <div class="flex gap-3">
+                            <span class="font-bold text-slate-900 dark:text-white min-w-[12px]">3.</span>
+                            <span>Enter <span class="font-bold text-slate-800 dark:text-white">RTD</span> to auto-update Arrival & EDTO times.</span>
+                        </div>
+                        <div class="flex gap-3">
+                            <span class="font-bold text-slate-900 dark:text-white min-w-[12px]">4.</span>
+                            <span>Save to <span class="font-bold text-slate-800 dark:text-white">Home Screen</span> for offline use.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+			
+			
+        </div>
+        
+        <div id="sectors-container" class="space-y-6 hidden"></div>
+    </div>
+
+    <div id="history-modal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white dark:bg-slate-800 w-full max-w-md rounded-xl shadow-2xl overflow-hidden max-h-[80vh] flex flex-col">
+            <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800">
+                <h3 class="font-bold text-slate-800 dark:text-white">Flight History</h3>
+                <button onclick="toggleHistory()" class="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
+            </div>
+            <div id="history-list" class="overflow-y-auto p-2 modal-scroll flex-1"></div>
+            <div class="p-3 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800">
+                <button onclick="clearHistory()" class="w-full text-red-500 text-sm font-bold py-2 hover:bg-red-50 rounded">Clear History</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="readme-modal" class="hidden fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-slate-200 dark:border-slate-700">
+            
+            <div class="p-5 overflow-y-auto modal-scroll text-slate-600 dark:text-slate-300 text-sm leading-relaxed space-y-8">
+                
+                <section>
+                    <h4 class="font-black text-slate-800 dark:text-white uppercase tracking-wider text-xs mb-4 flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="m17 5-5-3-5 3"/><path d="m17 19-5 3-5-3"/></svg>
+                        Save to Home Screen (Offline Mode)
+                    </h4>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+                            <div class="flex items-center gap-2 mb-3 text-slate-900 dark:text-white font-bold text-xs uppercase">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.5 1.29-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.82zm-3.74-17.2c.68-.84 1.14-2.01.97-3.18-.98.06-2.16.65-2.86 1.49-.6.71-1.12 1.85-.98 3.04 1.09.08 2.2-.54 2.87-1.35z"/></svg>
+                                iOS / iPadOS (Safari)
+                            </div>
+                            <ol class="list-decimal pl-4 space-y-2 text-xs">
+                                <li>Launch <strong>Safari</strong> and open this app.</li>
+                                <li>Tap the <strong>Share</strong> icon (Square with arrow).</li>
+                                <li>Scroll down and select <strong>"Add to Home Screen"</strong>.</li>
+                                <li>Tap <strong>Add</strong>. Launch from Home Screen to enable offline caching.</li>
+                            </ol>
+                        </div>
+
+                        <div class="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+                            <div class="flex items-center gap-2 mb-3 text-slate-900 dark:text-white font-bold text-xs uppercase">
+                                <svg class="w-4 h-4 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 24 24"><path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5512 0 .9993.4482.9993.9993.0001.5511-.4482.9997-.9993.9997m-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5512 0 .9993.4482.9993.9993 0 .5511-.4481.9997-.9993.9997m11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1521-.5676.416.416 0 00-.5676.1521l-2.0223 3.503C15.5902 8.4213 13.8533 8.0854 12 8.0854s-3.5902.3359-5.1367.8647L4.841 5.4471a.416.416 0 00-.5676-.1521.416.416 0 00-.1521.5676l1.9973 3.4592C2.6889 11.1867.3432 14.6589 0 18.761h24c-.3432-4.1021-2.6889-7.5743-6.1185-9.4396"/></svg>
+                                Android (Chrome)
+                            </div>
+                            <ol class="list-decimal pl-4 space-y-2 text-xs">
+                                <li>Launch <strong>Chrome</strong> and open this app.</li>
+                                <li>Tap the <strong>Menu</strong> (Three dots) at top right.</li>
+                                <li>Tap <strong>"Install App"</strong> or <strong>"Add to Home screen"</strong>.</li>
+                                <li>Confirm <strong>Install</strong>.</li>
+                            </ol>
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <h4 class="font-black text-slate-800 dark:text-white uppercase tracking-wider text-xs mb-4 border-b border-slate-200 dark:border-slate-700 pb-2 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                        Interface & Functions
+                    </h4>
+                    
+                    <div class="space-y-4">
+                        <div class="flex gap-3">
+                            <div class="mt-1 w-8 h-8 rounded bg-blue-100 dark:bg-blue-900/50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0">Load</div>
+                            <div>
+                                <h5 class="font-bold text-slate-800 dark:text-white text-xs">Upload Flight Plan (OFP)</h5>
+                                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Click the blue <strong>Load</strong> button to select your PDF Flight Plan. The app parses Sectors, Fuel, Weights, and EDTO data automatically.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <div class="mt-1 w-8 h-8 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                            </div>
+                            <div>
+                                <h5 class="font-bold text-slate-800 dark:text-white text-xs">Smart Navigation</h5>
+                                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                    <strong>Timeline Jump:</strong> Tap any row in the Mission Timeline to instantly scroll to that sector's details.<br>
+                                    <strong>Back to Top:</strong> Use the floating arrow (bottom-right) to return to the summary quickly.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <div class="mt-1 w-8 h-8 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                            </div>
+                            <div>
+                                <h5 class="font-bold text-slate-800 dark:text-white text-xs">Settings / Database</h5>
+                                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Manage your Aircraft Weight Database. You can manually upload a new PDF database or sync with the cloud (if available).</p>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <div class="mt-1 w-8 h-8 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+                            </div>
+                            <div>
+                                <h5 class="font-bold text-slate-800 dark:text-white text-xs">View Original PDF</h5>
+                                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Opens the currently loaded PDF file in a new browser tab for cross-checking data or reading non-parsed sections.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <div class="mt-1 w-8 h-8 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                            </div>
+                            <div>
+                                <h5 class="font-bold text-slate-800 dark:text-white text-xs">Export PDF</h5>
+                                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Generates a high-quality PDF of the currently visualized flight sectors, perfect for digital record keeping.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <div class="mt-1 w-8 h-8 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 flex items-center justify-center shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                            </div>
+                            <div>
+                                <h5 class="font-bold text-slate-800 dark:text-white text-xs">Flight History</h5>
+                                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Quickly access your recently loaded flight plans. Tap any entry to reload the data immediately.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <div class="mt-1 w-8 h-8 rounded bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-500 flex items-center justify-center font-bold text-[10px] shrink-0">RTD</div>
+                            <div>
+                                <h5 class="font-bold text-slate-800 dark:text-white text-xs">Real Departure Time (RTD)</h5>
+                                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Enter your actual <strong>Off-Block Time</strong> in the yellow box. The app will automatically recalculate your Arrival Time (RTA), Alternate ETA, and all EDTO Entry/Exit windows.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <div class="mt-1 w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0 overflow-hidden">
+                                <img src="fdp/app-icon.png" class="w-full h-full object-cover">
+                            </div>
+                            <div>
+                                <h5 class="font-bold text-slate-800 dark:text-white text-xs">FDP Calculator</h5>
+                                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">A standalone tool to calculate allowable Flight Duty Periods, Standby limits, and Rest requirements based on acclimatization and sector counts.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <div class="mt-1 w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0 overflow-hidden">
+                                <img src="delays/app-icon.png" class="w-full h-full object-cover">
+                            </div>
+                            <div>
+                                <h5 class="font-bold text-slate-800 dark:text-white text-xs">Delay Code Finder</h5>
+                                <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Searchable database of IATA/Airline delay codes. Filter by category (PAX, TECH, OPS, WX, RAMP) to find the correct code quickly.</p>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+               <section class="border-t-4 border-red-600 pt-4 mt-6">
+                    <h4 class="font-black text-red-600 dark:text-red-500 uppercase tracking-widest text-sm mb-4 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        TERMS OF SERVICE & LIABILITY WAIVER
+                    </h4>
+                    
+                    <div class="bg-red-50 dark:bg-red-900/10 p-5 rounded-none border-l-4 border-red-600 text-[11px] sm:text-xs text-slate-700 dark:text-slate-300 font-medium space-y-3 text-justify leading-relaxed">
+                        
+                        <p>
+                            <strong class="text-red-700 dark:text-red-400 block mb-1 uppercase">1. NOT A CERTIFIED EFB APPLICATION</strong>
+                            This software ("FlightBrief") is a third-party utility designed for <strong>situational awareness and educational purposes only</strong>. It is NOT a certified Electronic Flight Bag (EFB) application (Class 1, 2, or 3) and has NOT been approved by any Civil Aviation Authority or regulatory body. It must <span class="underline font-bold">NEVER</span> be used as a primary source for navigation, fuel planning, or critical decision-making.
+                        </p>
+                        
+                        <p>
+                            <strong class="text-red-700 dark:text-red-400 block mb-1 uppercase">2. NO AFFILIATION DISCLOSURE</strong>
+                            This application is an independent software tool and is <strong>NOT affiliated, associated, authorized, endorsed by, or in any way officially connected with any airline, aircraft operator, or aviation organization.</strong> All product names, logos, callsigns, and brands referenced within this application are the property of their respective owners and are used solely for identification purposes under fair use.
+                        </p>
+
+                        <p>
+                            <strong class="text-red-700 dark:text-red-400 block mb-1 uppercase">3. DATA PARSING & OCR WARNING</strong>
+                            This application uses automated text parsing and Optical Character Recognition (OCR) to extract data from PDF files. <strong>ERRORS CAN AND DO OCCUR.</strong> The user acknowledges that data extracted from the OFP (Operational Flight Plan) may be incomplete, outdated, or incorrect due to formatting changes or parsing failures. The Pilot in Command (PIC) retains the absolute duty to verify all figures against the official legal documents.
+                        </p>
+                        
+                        <p>
+                            <strong class="text-red-700 dark:text-red-400 block mb-1 uppercase">4. TOTAL INDEMNIFICATION</strong>
+                            By using this software, you agree to indemnify, defend, and hold harmless the developer, owners, and affiliates from any and all claims, liabilities, damages, losses, or expenses (including legal fees) arising from your use of this application. You explicitly waive your right to sue the developer for any operational incidents, delays, or financial losses associated with the use of this tool.
+                        </p>
+
+                        <div class="mt-4 pt-3 border-t border-red-200 dark:border-red-800/30">
+                            <p class="font-bold text-slate-900 dark:text-white text-center uppercase tracking-wide">
+                                BY CLICKING "I UNDERSTAND & AGREE", YOU CONFIRM THAT YOU HAVE READ THIS AGREEMENT AND ACCEPT THESE TERMS AS A LEGALLY BINDING CONTRACT.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+            <div class="p-4 border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900">
+                <button onclick="toggleReadMe()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-600/30 transition-all transform active:scale-95">
+                    I Understand & Agree
+                </button>
+            </div>
+        </div>
+    </div>
+
+
+    <div id="settings-modal" class="hidden fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white dark:bg-slate-800 w-full max-w-md rounded-xl shadow-2xl overflow-hidden flex flex-col border border-slate-200 dark:border-slate-700">
+            <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-800">
+                <h3 class="font-bold text-slate-800 dark:text-white">Database Settings</h3>
+                <button onclick="toggleSettings()" class="text-slate-400 hover:text-slate-600 text-2xl">&times;</button>
+            </div>
+            
+            <div class="p-4 space-y-6">
+                
+                <div>
+                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Official Database</div>
+                    <button id="btn-force-sync" onclick="forceCloudSync()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-lg shadow-sm flex flex-col items-center justify-center gap-0.5 transition-transform active:scale-95">
+                        <div class="flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            <span>Download Latest Cloud DB</span>
+                        </div>
+                        <span id="cloud-version-label" class="text-[10px] font-mono opacity-80 font-normal">Checking Cloud...</span>
+                    </button>
+                    <p class="text-[10px] text-slate-500 mt-2 text-center">
+                        Tap this to discard local changes and get the latest official version.
+                    </p>
+                </div>
+
+                <div class="border-t border-slate-200 dark:border-slate-700"></div>
+
+                <div class="opacity-70 hover:opacity-100 transition-opacity">
+                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Admin Control</div>
+                    <div class="space-y-3">
+                        <button onclick="document.getElementById('cloud-upload-input').click()" class="w-full bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 rounded text-xs flex items-center justify-center gap-2">
+                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                             Upload New DB
+                        </button>
+                        <div>
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1">Admin Token</label>
+                            <input type="password" id="gist-token" placeholder="Restricted Access" class="w-full p-2 rounded border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-sm text-slate-800 dark:text-white focus:ring-2 focus:ring-purple-500 outline-none">
+                        </div>
+                        <button onclick="saveCloudSettings()" class="w-full bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-200 font-bold py-2 rounded text-xs">Save Admin Token</button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script src="aircraft_db.js"></script>
+    <script src="script.js"></script>
+
+    <script>
+        // --- SAFER AUTO-UPDATE LOGIC ---
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                let refreshing = false;
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    if (!refreshing) {
+                        refreshing = true;
+                        window.location.reload();
+                    }
+                });
+                navigator.serviceWorker.register('./sw.js').then(reg => {
+                    reg.update();
+                    reg.addEventListener('updatefound', () => {
+                        const newWorker = reg.installing;
+                        newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                console.log('New update available. It will apply on next reload.');
+                            }
+                        });
+                    });
+                });
+            });
+        }
+        
+        // --- OFFLINE STATUS BAR LOGIC ---
+        const warningMsg = "⚠️ DO NOT USE FOR COCKPIT ACTIVITY ⚠️";
+        function updateOnlineStatus() {
+            const bar = document.getElementById('status-bar');
+            const baseClass = "bg-red-600 text-white text-center text-xs sm:text-sm font-bold py-2 px-2 shadow-md z-20 uppercase tracking-wide";
+            if (navigator.onLine) {
+                bar.innerText = warningMsg;
+                bar.className = baseClass;
+            } else {
+                bar.innerText = warningMsg + " (OFFLINE MODE)";
+                bar.className = baseClass; 
+            }
+        }
+        window.addEventListener('online', updateOnlineStatus);
+        window.addEventListener('offline', updateOnlineStatus);
+        updateOnlineStatus(); 
+        
+        // Initialize DB Status
+        setTimeout(() => {
+            updateDBStatusUI();
+        }, 500);
+    </script>
+	
+<div id="nav-fab-container" class="fixed bottom-6 right-6 z-50 flex flex-col items-end">
+    
+    <div id="nav-menu" class="flex flex-col items-end gap-3 mb-3 transition-all duration-200 origin-bottom-right opacity-0 translate-y-4 scale-90 pointer-events-none">
+        
+        <button onclick="navigateTo('top')" class="flex items-center gap-3 group">
+            <span class="bg-slate-800 text-white text-[10px] font-bold px-2 py-1 rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity">Top</span>
+            <div class="w-10 h-10 rounded-full bg-emerald-600 text-white shadow-lg flex items-center justify-center hover:bg-emerald-700 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+            </div>
+        </button>
+
+        <div id="nav-dynamic-sectors" class="flex flex-col items-end gap-3">
+            </div>
+
+        <button onclick="navigateTo('company-notam-card')" class="flex items-center gap-3 group">
+            <span class="bg-slate-800 text-white text-[10px] font-bold px-2 py-1 rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity">Company NOTAMs</span>
+            <div class="w-10 h-10 rounded-full bg-purple-600 text-white shadow-lg flex items-center justify-center hover:bg-purple-700 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            </div>
+        </button>
+
+        <button onclick="navigateTo('weather-container')" class="flex items-center gap-3 group">
+            <span class="bg-slate-800 text-white text-[10px] font-bold px-2 py-1 rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity">Live Weather + NOTAM </span>
+            <div class="w-10 h-10 rounded-full bg-blue-600 text-white shadow-lg flex items-center justify-center hover:bg-blue-700 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.5 19c0-1.7-1.3-3-3-3h-11a3 3 0 0 1-3-3c0-1.3 0.8-2.4 2-2.8 0.6-2.5 2.8-4.2 5.5-4.2 1.9 0 3.6 0.9 4.7 2.3 0.7-0.2 1.4-0.3 2.1-0.3 3.9 0 7 3.1 7 7 0 0.4 0 0.9-0.1 1.3z"/></svg>
+            </div>
+        </button>
+
+    </div>
+
+    <button onclick="toggleNavMenu()" id="nav-main-btn" class="w-14 h-14 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-2xl flex items-center justify-center transition-transform active:scale-90 z-50">
+        <svg id="icon-menu" class="transition-transform duration-300 transform" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+        <svg id="icon-close" class="absolute opacity-0 transition-opacity duration-300 transform rotate-90 scale-50" xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+</div>
+
+<script>
+    let isNavOpen = false;
+    const navMenu = document.getElementById('nav-menu');
+    const iconMenu = document.getElementById('icon-menu');
+    const iconClose = document.getElementById('icon-close');
+    const mainContainer = document.getElementById('main-container');
+
+    function toggleNavMenu() {
+        isNavOpen = !isNavOpen;
+        if (isNavOpen) {
+            // Open
+            navMenu.classList.remove('opacity-0', 'translate-y-4', 'scale-90', 'pointer-events-none');
+            // Rotate Icons
+            iconMenu.classList.add('opacity-0', 'rotate-90', 'scale-50');
+            iconClose.classList.remove('opacity-0', 'rotate-90', 'scale-50');
+        } else {
+            // Close
+            navMenu.classList.add('opacity-0', 'translate-y-4', 'scale-90', 'pointer-events-none');
+            // Reset Icons
+            iconMenu.classList.remove('opacity-0', 'rotate-90', 'scale-50');
+            iconClose.classList.add('opacity-0', 'rotate-90', 'scale-50');
+        }
+    }
+
+function navigateTo(targetId) {
+        if (targetId === 'top') {
+            // Try scrolling both to be safe
+            if (mainContainer) mainContainer.scrollTo({ top: 0, behavior: 'smooth' });
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            const el = document.getElementById(targetId);
+            if (el) {
+                const headerOffset = 80;
+                
+                // FIX: Check if the main container is configured to scroll, or if the window is scrolling
+                // If overflow-y is NOT 'auto' or 'scroll', it means we are using Window scrolling.
+                const style = window.getComputedStyle(mainContainer);
+                const isContainerScroll = style.overflowY === 'auto' || style.overflowY === 'scroll';
+                
+                const elementRect = el.getBoundingClientRect().top;
+
+                if (isContainerScroll) {
+                    // Scenario A: Scrolling inside the middle box
+                    const offsetPosition = elementRect + mainContainer.scrollTop - headerOffset;
+                    mainContainer.scrollTo({ top: offsetPosition, behavior: "smooth" });
+                } else {
+                    // Scenario B: Scrolling the whole page (Window) - THIS IS YOUR CURRENT LAYOUT
+                    const offsetPosition = elementRect + window.scrollY - headerOffset;
+                    window.scrollTo({ top: offsetPosition, behavior: "smooth" });
+                }
+
+                // Visual Cue
+                el.classList.add('ring-4', 'ring-blue-500', 'transition-all');
+                setTimeout(() => el.classList.remove('ring-4', 'ring-blue-500'), 1500);
+            } else {
+                console.warn("Target element not found:", targetId);
+            }
+        }
+        toggleNavMenu(); 
+    }
+
+    // Close menu if clicking outside
+    document.addEventListener('click', function(event) {
+        const fab = document.getElementById('nav-fab-container');
+        if (isNavOpen && !fab.contains(event.target)) {
+            toggleNavMenu();
+        }
+    });
+</script>
+	
+</body>
+</html>
