@@ -1,6 +1,6 @@
 // --- FLIGHTBRIEF SERVICE WORKER ---
 // UPDATE THIS VERSION to force all users to get the new script.js
-const CACHE_NAME = 'flightbrief-suite-v16-fix-weather'; 
+const CACHE_NAME = 'flightbrief-suite-v17'; 
 
 const ASSETS_TO_CACHE = [
     // 1. ROOT APP

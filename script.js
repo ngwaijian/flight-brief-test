@@ -1970,75 +1970,74 @@ async function fetchAndRenderWeather(sectors) {
     
     renderWeatherPlaceholder();
     
+// --- UPDATED WEATHER FETCH FUNCTION ---
 async function getWeatherText(code, type) {
-        const cacheBuster = `&_=${Date.now()}`;
-        const proxy = 'https://corsproxy.io/?'; 
+    // 1. Generate a unique timestamp
+    const timestamp = Date.now();
+    
+    // 2. We add the timestamp to the TARGET URL (so AWC sees a new request)
+    //    AND to the PROXY URL (so the Proxy sees a new request)
+    const cacheBuster = `&_=${timestamp}`;
+    const proxyBase = 'https://corsproxy.io/?'; 
 
-        // Timeout: Kill request if it hangs for more than 5 seconds
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000); 
 
-        // 1. Define URLs (NOW ALL PROXIED)
-        // We route AviationWeather through the proxy too, to bypass CORS/Network blocks
-        const urlAWC_Direct = type === 'METAR'
-            ? `https://aviationweather.gov/api/data/metar?ids=${code}&format=raw${cacheBuster}`
-            : `https://aviationweather.gov/api/data/taf?ids=${code}&format=raw${cacheBuster}`;
-            
-        const urlAWC_Proxied = proxy + encodeURIComponent(urlAWC_Direct);
+    // Define Target URLs
+    const urlAWC = type === 'METAR'
+        ? `https://aviationweather.gov/api/data/metar?ids=${code}&format=raw${cacheBuster}`
+        : `https://aviationweather.gov/api/data/taf?ids=${code}&format=raw${cacheBuster}`;
+        
+    const urlNOAA = type === 'METAR' 
+        ? `https://tgftp.nws.noaa.gov/data/observations/metar/stations/${code}.TXT?_=${timestamp}`
+        : `https://tgftp.nws.noaa.gov/data/forecasts/taf/stations/${code}.TXT?_=${timestamp}`;
+    
+    // Construct Proxied URLs (Notice we add the timestamp to the proxy call too)
+    const urlAWC_Proxied = `${proxyBase}${encodeURIComponent(urlAWC)}&cb=${timestamp}`;
+    const urlNOAA_Proxied = `${proxyBase}${encodeURIComponent(urlNOAA)}&cb=${timestamp}`;
 
-        const urlNOAA = type === 'METAR' 
-            ? `https://tgftp.nws.noaa.gov/data/observations/metar/stations/${code}.TXT`
-            : `https://tgftp.nws.noaa.gov/data/forecasts/taf/stations/${code}.TXT`;
-        const urlNOAA_Proxied = proxy + encodeURIComponent(urlNOAA) + cacheBuster;
+    // --- ATTEMPT 1: AviationWeather ---
+    try {
+        console.log(`Fetching ${type} for ${code} (AWC)...`);
+        const res1 = await fetch(urlAWC_Proxied, { 
+            signal: controller.signal,
+            cache: 'no-store' 
+        });
+        clearTimeout(timeoutId); 
+        if (res1.ok) {
+            const text = await res1.text();
+            if (text && text.length > 5) return text; 
+        }
+    } catch (e) { console.warn(`AWC failed for ${code}`); }
 
-        // --- ATTEMPT 1: AviationWeather (Via Proxy) ---
+    // --- ATTEMPT 2: NOAA ---
+    try {
+        console.log(`Fetching ${type} for ${code} (NOAA)...`);
+        const res2 = await fetch(urlNOAA_Proxied, { cache: 'no-store' });
+        if (res2.ok) {
+            const text = await res2.text();
+            if (text && text.length > 5 && text.includes(code)) return text;
+        }
+    } catch (e) { console.warn(`NOAA failed for ${code}`); }
+
+    // --- ATTEMPT 3: CheckWX ---
+    if (typeof CHECKWX_API_KEY !== 'undefined' && CHECKWX_API_KEY) {
         try {
-            console.log(`Fetching ${type} for ${code} from AWC (Proxied)...`);
-            const res1 = await fetch(urlAWC_Proxied, { signal: controller.signal });
-            clearTimeout(timeoutId); 
-            
-            if (res1.ok) {
-                const text = await res1.text();
-                // AWC returns empty string if not found
-                if (text && text.length > 5) return text; 
+            const urlCheck = `https://api.checkwx.com/${type.toLowerCase()}/${code}/decoded?_=${timestamp}`;
+            const res3 = await fetch(urlCheck, { 
+                headers: { "X-API-Key": CHECKWX_API_KEY },
+                cache: "no-store"
+            });
+            if (res3.ok) {
+                const json = await res3.json();
+                if (json.data && json.data.length > 0) return json.data[0];
             }
-        } catch (e) { 
-            console.warn(`AWC (Proxy) failed for ${code}:`, e);
-        }
-
-        // --- ATTEMPT 2: NOAA (Via Proxy) ---
-        try {
-            console.log(`Fetching ${type} for ${code} from NOAA (Proxy)...`);
-            const res2 = await fetch(urlNOAA_Proxied);
-            if (res2.ok) {
-                const text = await res2.text();
-                if (text && text.length > 5 && text.includes(code)) return text;
-            }
-        } catch (e) {
-            console.warn(`NOAA Proxy failed for ${code}:`, e);
-        }
-
-        // --- ATTEMPT 3: CheckWX (Fail-Safe) ---
-        if (typeof CHECKWX_API_KEY !== 'undefined' && CHECKWX_API_KEY && CHECKWX_API_KEY !== 'YOUR_API_KEY_HERE') {
-            try {
-                console.log(`Fetching ${type} for ${code} from CheckWX...`);
-                const urlCheck = `https://api.checkwx.com/${type.toLowerCase()}/${code}?_=${Date.now()}`;
-                const res3 = await fetch(urlCheck, { 
-                    headers: { "X-API-Key": CHECKWX_API_KEY },
-                    cache: "no-store"
-                });
-                
-                if (res3.ok) {
-                    const json = await res3.json();
-                    if (json.data && json.data.length > 0) return json.data[0];
-                }
-            } catch (e) {
-                console.warn(`CheckWX failed for ${code}:`, e);
-            }
-        }
-
-        return null; // All sources failed
+        } catch (e) {}
     }
+
+    return null;
+}
+
 
     const promises = airportList.map(async (code) => {
         const metarTxt = await getWeatherText(code, 'METAR');
