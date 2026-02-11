@@ -1,6 +1,6 @@
 // --- FLIGHTBRIEF SERVICE WORKER ---
 // UPDATE THIS VERSION to force all users to get the new script.js
-const CACHE_NAME = 'flightbrief-suite-v17'; 
+const CACHE_NAME = 'flightbrief-suite-v18'; 
 
 const ASSETS_TO_CACHE = [
     // 1. ROOT APP
@@ -56,35 +56,24 @@ self.addEventListener('activate', (event) => {
     );
 });
 
+// --- UPDATED FETCH LISTENER ---
 self.addEventListener('fetch', (event) => {
     const url = event.request.url;
 
-    // --- CRITICAL FIX: DO NOT CACHE WEATHER ---
-    // If the URL is for Weather (AviationWeather, NOAA, CheckWX), 
-    // strictly go to NETWORK. Do not look in Cache.
-    if (url.includes('aviationweather.gov') || 
-        url.includes('checkwx.com') || 
-        url.includes('noaa.gov') || 
-        url.includes('corsproxy.io')) {
-        return; // Default browser behavior (Network Only)
+    // 1. EXCEPTION: Do NOT cache Weather APIs or Proxies
+    // We want these to go straight to the internet every single time.
+    if (url.includes('aviationweather') || 
+        url.includes('checkwx') || 
+        url.includes('corsproxy') || 
+        url.includes('noaa')) {
+        return; // By returning nothing, we force a direct network call
     }
 
-    if (!url.startsWith('http')) return;
-    
-    // Standard Stale-While-Revalidate for App Files
+    // 2. STANDARD CACHING for everything else (HTML, CSS, JS, Images)
     event.respondWith(
-        caches.match(event.request).then((cachedResponse) => {
-            const networkFetch = fetch(event.request).then((networkResponse) => {
-                if(networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-                    const responseClone = networkResponse.clone();
-                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
-                }
-                return networkResponse;
-            }).catch(() => {
-                // Offline fallback could go here
-            });
-
-            return cachedResponse || networkFetch;
+        caches.match(event.request).then((response) => {
+            // Return cached file if found, otherwise fetch from network
+            return response || fetch(event.request);
         })
     );
 });
